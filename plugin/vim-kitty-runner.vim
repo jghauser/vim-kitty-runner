@@ -8,38 +8,34 @@ function! s:InitVariable(var, value)
 endfunction
 
 function! s:SendKittyCommand(command)
-  let prefixed_command = "!kitty @ --to=" . g:KittyPort . " " . a:command
+  let prefixed_command = g:AsyncCommand . "kitty @ --to=" . g:KittyPort . " " . a:command
   silent exec prefixed_command
 endfunction
 
-function! s:SwitchKittyLayout()
-  if g:KittySwitchFocus
-    let layout_command = "!kitty @ goto-layout " . g:KittyFocusLayout
-    silent exec layout_command
-  endif
+function! s:OpenNewKitty()
+  let prefixed_command = g:AsyncCommand . "kitty -o allow_remote_control=yes --listen-on=" . g:KittyPort . " --title=" . s:runner_name . "&"
+  redraw
+  silent exec prefixed_command
 endfunction
 
 function! s:RunCommand()
   call inputsave()
   let s:command = input('Command to run: ')
   call inputrestore()
-  let s:wholecommand = join([s:run_cmd, shellescape(s:command, 1), shellescape('\n')])
+  let s:wholecommand = join([s:run_cmd, shellescape(s:command, 1), ""])
 
   if exists("s:runner_open")
     call s:SendKittyCommand(s:wholecommand)
-    call s:SwitchKittyLayout()
   else
     let s:runner_open = 1
     call s:SendKittyCommand("new-window --title " . s:runner_name . " " . g:KittyWinArgs)
     call s:SendKittyCommand(s:wholecommand)
-    call s:SwitchKittyLayout()
   endif
 endfunction
 
 function! s:RunLastCommand()
   if exists("s:runner_open")
     call s:SendKittyCommand(s:wholecommand)
-    call s:SwitchKittyLayout()
   endif
 endfunction
 
@@ -62,12 +58,11 @@ function! s:SendLines()
   let s:wholecommand = join([s:run_cmd, shellescape(s:command, 1), ""])
   if exists("s:runner_open")
     call s:SendKittyCommand(s:wholecommand)
-    call s:SwitchKittyLayout()
   else
     let s:runner_open = 1
-    call s:SendKittyCommand("new-window --title " . s:runner_name . " " . g:KittyWinArgs)
+    call s:OpenNewKitty()
+    " call s:SendKittyCommand("new-window --title " . s:runner_name . " " . g:KittyWinArgs)
     call s:SendKittyCommand(s:wholecommand)
-    call s:SwitchKittyLayout()
   endif
 endfunction
 
@@ -84,13 +79,15 @@ endfunction
 function! s:InitializeVariables()
   let uuid = system("uuidgen|sed 's/.*/&/'")[:-2]
   let s:runner_name = "vim-cmd_" . uuid
+  " let s:run_cmd = "send-text --match=title:" . s:runner_name
+  " let s:kill_cmd = "close-window --match=title:" . s:runner_name
   let s:run_cmd = "send-text --match=title:" . s:runner_name
   let s:kill_cmd = "close-window --match=title:" . s:runner_name
   call s:InitVariable("g:KittyUseMaps", 1)
-  call s:InitVariable("g:KittyPort", "unix:/tmp/kitty")
+  let s:KittyPort = "unix:/tmp/kitty" . str2nr(matchstr(reltimestr(reltime()), '\v\.@<=\d+')[1:])
+  call s:InitVariable("g:KittyPort", s:KittyPort)
   call s:InitVariable("g:KittyWinArgs", "--keep-focus --cwd=" . $PWD)
-  call s:InitVariable("g:KittySwitchFocus", 0)
-  call s:InitVariable("g:KittyFocusLayout", "fat:bias=70")
+  call s:CheckAsyncAvailable()
 endfunction
 
 function! s:DefineCommands()
