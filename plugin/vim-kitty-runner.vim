@@ -62,11 +62,12 @@ function! s:SendLines()
   let s:wholecommand = join([s:run_cmd, shellescape(s:command, 1), ""])
   if exists("s:runner_open")
     call s:SendKittyCommand(s:wholecommand)
+    call s:SwitchKittyLayout()
   else
     let s:runner_open = 1
-    call s:OpenNewKitty()
-    " call s:SendKittyCommand("new-window --title " . s:runner_name . " " . g:KittyWinArgs)
+    call s:SendKittyCommand("new-window --title " . s:runner_name . " " . g:KittyWinArgs)
     call s:SendKittyCommand(s:wholecommand)
+    call s:SwitchKittyLayout()
   endif
 endfunction
 
